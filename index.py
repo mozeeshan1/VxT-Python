@@ -559,7 +559,7 @@ async def on_message(message):
         if temp_bot.id in master_settings[message.guild.id]["blacklist"]["users"] or any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in temp_bot.roles):
             return
 
-    if not message.webhook_id and (message.author.id in master_settings[message.guild.id]["blacklist"]["users"] or (hasattr(message.author.roles, "roles") and any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in message.author.roles))):
+    if not message.webhook_id and (message.author.id in master_settings[message.guild.id]["blacklist"]["users"] or (hasattr(message.author, "roles") and any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in message.author.roles))):
         return
 
     # if message.content.startswith('$hello'):
