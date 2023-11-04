@@ -464,6 +464,29 @@ def convert_domains_in_message(message, guild_id, urls):
 
     return processed_message
 
+def split_message(message, chunk_size=2000):
+    # Ensure the message will be split on word boundaries
+    words = message.split()
+    
+    # Check if the message is short enough
+    if len(message) <= chunk_size:
+        return [message]
+    
+    # Otherwise, split the message into chunks
+    chunks = []
+    current_chunk = words[0]
+
+    for word in words[1:]:
+        if len(current_chunk) + len(word) + 1 <= chunk_size:  # +1 for the space
+            current_chunk += ' ' + word
+        else:
+            chunks.append(current_chunk)
+            current_chunk = word
+    
+    # Add the last chunk
+    chunks.append(current_chunk)
+    
+    return chunks
 
 config = open("config.json")
 config = json.load(config)
@@ -567,6 +590,7 @@ async def on_message(message):
     #     print("said hello", message.author.display_name,
     #           message.author.display_avatar)
 
+
     # Extract all URLs from the message
     urls = re.findall(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', message.content)
@@ -613,25 +637,60 @@ async def on_message(message):
                 else:
                     matching_webhook = await message.channel.create_webhook(name="VxT", reason="To send messages with converted links.")
 
-            # Parameters to always include
-            webhook_params = {
-                'content': converted_domains_message,
-                'wait': True,
-                'username': message.author.display_name if master_settings[message.guild.id]["name-preference"] == "display name" else message.author.name,
-                'avatar_url': message.author.display_avatar,
-                'files': [await attachment.to_file() for attachment in message.attachments],
-                'allowed_mentions': msg_mentions
-            }
 
-            # Conditionally add the 'thread' parameter if the channel type is a thread
-            if "thread" in message.channel.type:
-                webhook_params['thread'] = message.channel.id
-            sent_message = await matching_webhook.send(**webhook_params)
+            if len(convert_domains_in_message) >=2000:
+                split_converted_message=split_message(convert_domains_in_message,2000)
+                for split_chunk in split_converted_message:
+                    # Parameters to always include
+                    webhook_params = {
+                        'content': split_chunk,
+                        'wait': True,
+                        'username': message.author.display_name if master_settings[message.guild.id]["name-preference"] == "display name" else message.author.name,
+                        'avatar_url': message.author.display_avatar,
+                        'files': [await attachment.to_file() for attachment in message.attachments],
+                        'allowed_mentions': msg_mentions
+                    }
+
+                    # Conditionally add the 'thread' parameter if the channel type is a thread
+                    if "thread" in message.channel.type:
+                        webhook_params['thread'] = message.channel.id
+                    sent_message = await matching_webhook.send(**webhook_params)
+                    if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
+                        await sent_message.add_reaction("❌")
+            else:
+                # Parameters to always include
+                webhook_params = {
+                    'content': converted_domains_message,
+                    'wait': True,
+                    'username': message.author.display_name if master_settings[message.guild.id]["name-preference"] == "display name" else message.author.name,
+                    'avatar_url': message.author.display_avatar,
+                    'files': [await attachment.to_file() for attachment in message.attachments],
+                    'allowed_mentions': msg_mentions
+                }
+
+                # Conditionally add the 'thread' parameter if the channel type is a thread
+                if "thread" in message.channel.type:
+                    webhook_params['thread'] = message.channel.id
+                sent_message = await matching_webhook.send(**webhook_params)
 
         elif master_settings[message.guild.id]["webhook"]["preference"] == "bot" and master_settings[message.guild.id]["webhook"]["reply"]:
-            sent_message = await message.reply(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
+            if len(convert_domains_in_message) >=2000:
+                split_converted_message=split_message(convert_domains_in_message,2000)
+                for split_chunk in split_converted_message:
+                    sent_message = await message.reply(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
+                    if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
+                        await sent_message.add_reaction("❌")
+            else:
+                sent_message = await message.reply(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
         else:
-            sent_message = await message.channel.send(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_send_mentions)
+            if len(convert_domains_in_message) >=2000:
+                split_converted_message=split_message(convert_domains_in_message,2000)
+                for split_chunk in split_converted_message:
+                    sent_message = await message.channel.send(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_send_mentions)
+                    if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
+                        await sent_message.add_reaction("❌")
+            else:
+                sent_message = await message.channel.send(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_send_mentions)
 
         if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
             await sent_message.add_reaction("❌")
