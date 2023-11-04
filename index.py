@@ -527,6 +527,8 @@ async def on_raw_reaction_add(payload):
         if temp_bot.id == bot.user.id:
             reaction = next(
                 (react for react in message.reactions if "❌" in react.emoji), None)
+            if reaction is None:
+                return
             if reaction.count > master_settings[payload.guild_id]["delete-bot-message"]["number"]:
                 await message.delete()
                 return
