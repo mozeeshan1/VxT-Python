@@ -465,27 +465,25 @@ def convert_domains_in_message(message, guild_id, urls):
     return processed_message
 
 def split_message(message, chunk_size=2000):
-    # Ensure the message will be split on word boundaries
-    words = message.split()
-    
-    # Check if the message is short enough
-    if len(message) <= chunk_size:
-        return [message]
-    
-    # Otherwise, split the message into chunks
+     # Split the message by newlines to preserve the structure
+    parts = message.split('\n')
     chunks = []
-    current_chunk = words[0]
+    current_chunk = ""
 
-    for word in words[1:]:
-        if len(current_chunk) + len(word) + 1 <= chunk_size:  # +1 for the space
-            current_chunk += ' ' + word
-        else:
+    for part in parts:
+        # Check if adding the next part would exceed the chunk size
+        if len(current_chunk) + len(part) + 1 > chunk_size:
+            # If so, add the current chunk to the list and start a new one
             chunks.append(current_chunk)
-            current_chunk = word
-    
-    # Add the last chunk
-    chunks.append(current_chunk)
-    
+            current_chunk = part
+        else:
+            # If not, add the part to the current chunk with a newline
+            current_chunk += ('\n' + part if current_chunk else part)
+
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+
     return chunks
 
 config = open("config.json")
