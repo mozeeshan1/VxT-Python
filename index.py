@@ -638,8 +638,8 @@ async def on_message(message):
                     matching_webhook = await message.channel.create_webhook(name="VxT", reason="To send messages with converted links.")
 
 
-            if len(convert_domains_in_message) >=2000:
-                split_converted_message=split_message(convert_domains_in_message,2000)
+            if len(converted_domains_message) >=2000:
+                split_converted_message=split_message(converted_domains_message,2000)
                 for split_chunk in split_converted_message:
                     # Parameters to always include
                     webhook_params = {
@@ -674,8 +674,8 @@ async def on_message(message):
                 sent_message = await matching_webhook.send(**webhook_params)
 
         elif master_settings[message.guild.id]["webhook"]["preference"] == "bot" and master_settings[message.guild.id]["webhook"]["reply"]:
-            if len(convert_domains_in_message) >=2000:
-                split_converted_message=split_message(convert_domains_in_message,2000)
+            if len(converted_domains_message) >=2000:
+                split_converted_message=split_message(converted_domains_message,2000)
                 for split_chunk in split_converted_message:
                     sent_message = await message.reply(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
                     if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
@@ -683,8 +683,8 @@ async def on_message(message):
             else:
                 sent_message = await message.reply(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
         else:
-            if len(convert_domains_in_message) >=2000:
-                split_converted_message=split_message(convert_domains_in_message,2000)
+            if len(converted_domains_message) >=2000:
+                split_converted_message=split_message(converted_domains_message,2000)
                 for split_chunk in split_converted_message:
                     sent_message = await message.channel.send(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_send_mentions)
                     if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
