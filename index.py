@@ -14,7 +14,7 @@ import re
 from collections import defaultdict
 
 
-default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com",
+default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com","x.com":"fxtwitter.com",
                                         "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": {"all": True, "text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
 
 master_settings = {}
