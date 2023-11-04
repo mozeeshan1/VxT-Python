@@ -15,7 +15,7 @@ from collections import defaultdict
 
 
 default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com",
-                                        "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": {"all": True, "text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": True, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
+                                        "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": {"all": True, "text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
 
 master_settings = {}
 
@@ -481,13 +481,12 @@ async def on_ready():
     await bot.tree.sync()
 
     for filename in default_settings.keys():
-        temp_list=read_file_content(filename,{})
+        temp_list = read_file_content(filename, {})
         for guild in bot.guilds:
             if guild.id not in temp_list:
-                temp_list[guild.id]=default_settings[filename]
-        await write_file_content(filename,temp_list)
+                temp_list[guild.id] = default_settings[filename]
+        await write_file_content(filename, temp_list)
 
-    
     await load_settings()
     await bot.change_presence(activity=discord.Game(name=f"in {len(bot.guilds)} servers"))
     print(f'We have logged in as {bot.user}')
@@ -558,7 +557,7 @@ async def on_message(message):
         if temp_bot.id in master_settings[message.guild.id]["blacklist"]["users"] or any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in temp_bot.roles):
             return
 
-    if not message.webhook_id and (message.author.id in master_settings[message.guild.id]["blacklist"]["users"] or any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in message.author.roles)):
+    if not message.webhook_id and (message.author.id in master_settings[message.guild.id]["blacklist"]["users"] or (hasattr(message.author.roles, "roles") and any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in message.author.roles))):
         return
 
     # if message.content.startswith('$hello'):
@@ -578,14 +577,14 @@ async def on_message(message):
             return
         msg_mentions = discord.AllowedMentions.all()
         msg_send_mentions = discord.AllowedMentions.all()
-        if len(master_settings[message.guild.id]["mention-remove"]) > 0 and (len(message.mentions) > 0 or len(message.role_mentions) > 0):
+        if len(master_settings[message.guild.id]["mention-remove"]) > 0 and (message.mention_everyone or len(message.mentions) > 0 or len(message.role_mentions) > 0):
             users_mentioned = message.mentions
             roles_mentioned = message.role_mentions
             # Filter out members and roles whose mention is in the mention_set
             filtered_members = [
-                user.id for user in users_mentioned if user.mention not in master_settings[message.guild.id]["mention-remove"]]
+                user for user in users_mentioned if user.mention not in master_settings[message.guild.id]["mention-remove"]]
             filtered_roles = [
-                role.id for role in roles_mentioned if role.mention not in master_settings[message.guild.id]["mention-remove"]]
+                role for role in roles_mentioned if role.mention not in master_settings[message.guild.id]["mention-remove"]]
             msg_mentions = discord.AllowedMentions(
                 everyone="everyone" not in master_settings[message.guild.id]["mention-remove"], users=filtered_members, roles=filtered_roles)
             filtered_send_members = [
