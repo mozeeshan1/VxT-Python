@@ -479,13 +479,15 @@ async def on_ready():
     await bot.wait_until_ready()
     print("Bot is ready")
     await bot.tree.sync()
-    for guild in bot.guilds:
-        for filename in default_settings.keys():
-            temp_list = read_file_content(
-                filename, {guild.id: default_settings[filename]})
+
+    for filename in default_settings.keys():
+        temp_list=read_file_content(filename,{})
+        for guild in bot.guilds:
             if guild.id not in temp_list:
-                temp_list[guild.id] = default_settings[filename]
-            await write_file_content(filename, temp_list)
+                temp_list[guild.id]=default_settings[filename]
+        await write_file_content(filename,temp_list)
+
+    
     await load_settings()
     await bot.change_presence(activity=discord.Game(name=f"in {len(bot.guilds)} servers"))
     print(f'We have logged in as {bot.user}')
