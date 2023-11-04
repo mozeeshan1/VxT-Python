@@ -276,6 +276,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                 else:
                     print(
                         f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code}")
+                    continue
 
             if master_settings[guild_id]["toggle"] != default_settings["toggle-list"]:
                 if not master_settings[guild_id]["toggle"]["all"] or (not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"]))):
@@ -327,6 +328,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
             else:
                 print(
                     f"Failed to retrieve data for fxtwitter status {status_number}. HTTP Status Code: {response.status_code}")
+                continue 
 
         urls_to_delete = set()
         if master_settings[guild_id]["retweet"]["delete_original_tweet"]:
