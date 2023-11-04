@@ -1,1 +1,7 @@
 config.json
+lists/
+.vscode
+error-list
+error_log.txt
+
+
