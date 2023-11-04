@@ -3,5 +3,6 @@ lists/
 .vscode
 error-list
 error_log.txt
+config-old.json
 
 

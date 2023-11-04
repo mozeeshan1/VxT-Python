@@ -515,6 +515,8 @@ async def on_app_command_completion(interaction, command):
 
 @bot.event
 async def on_raw_reaction_add(payload):
+    if master_settings == {}:
+        return
     if not master_settings[payload.guild_id]["delete-bot-message"]["toggle"]:
         return
     channel = await bot.fetch_channel(payload.channel_id)
@@ -538,6 +540,8 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_message(message):
+    if master_settings == {}:
+        return
     if message.author == bot.user:
         return
 
