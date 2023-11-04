@@ -598,7 +598,7 @@ async def on_message(message):
         if master_settings[message.guild.id]["webhook"]["preference"] == "webhooks":
 
             channel_webhooks = None
-            if "thread" in message.channel.type:
+            if "thread" in message.channel.type or hasattr(message.channel,"parent"):
                 channel_webhooks = await message.channel.parent.webhooks()
             else:
                 channel_webhooks = await message.channel.webhooks()
@@ -606,7 +606,7 @@ async def on_message(message):
                 (webhook for webhook in channel_webhooks if bot.user.id == webhook.user.id), None)
 
             if not matching_webhook:
-                if "thread" in message.channel.type:
+                if "thread" in message.channel.type or hasattr(message.channel,"parent"):
                     matching_webhook = await message.channel.parent.create_webhook(name="VxT", reason="To send messages with converted links.")
                 else:
                     matching_webhook = await message.channel.create_webhook(name="VxT", reason="To send messages with converted links.")
