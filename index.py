@@ -636,7 +636,7 @@ async def main():
     bot.tree.on_error = command_error_handler
     bot.on_error = on_bot_error
     bot.on_command_error = on_bot_command_error
-    await bot.start(config["TEST TOKEN"], reconnect=True)
+    await bot.start(config["TOKEN"], reconnect=True)
 
 
 # Use asyncio.run() only if this script is executed directly
