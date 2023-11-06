@@ -14,7 +14,7 @@ import re
 from collections import defaultdict
 
 
-default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com","x.com":"fxtwitter.com",
+default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com", "x.com": "fxtwitter.com",
                                         "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": {"all": True, "text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
 
 master_settings = {}
@@ -328,7 +328,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
             else:
                 print(
                     f"Failed to retrieve data for fxtwitter status {status_number}. HTTP Status Code: {response.status_code}")
-                continue 
+                continue
 
         urls_to_delete = set()
         if master_settings[guild_id]["retweet"]["delete_original_tweet"]:
@@ -464,8 +464,9 @@ def convert_domains_in_message(message, guild_id, urls):
 
     return processed_message
 
+
 def split_message(message, chunk_size=2000):
-     # Split the message by newlines to preserve the structure
+    # Split the message by newlines to preserve the structure
     parts = message.split('\n')
     chunks = []
     current_chunk = ""
@@ -486,6 +487,7 @@ def split_message(message, chunk_size=2000):
 
     return chunks
 
+
 config = open("config.json")
 config = json.load(config)
 
@@ -503,6 +505,10 @@ async def on_ready():
     print("Bot is ready")
     await bot.tree.sync()
 
+    total_members = 0
+    for guild in bot.guilds:
+        total_members += guild.member_count
+
     for filename in default_settings.keys():
         temp_list = read_file_content(filename, {})
         for guild in bot.guilds:
@@ -514,6 +520,7 @@ async def on_ready():
     await bot.change_presence(activity=discord.Game(name=f"in {len(bot.guilds)} servers"))
     print(f'We have logged in as {bot.user}')
     print(f"{len(await bot.tree.fetch_commands())} application commands loaded")
+    print(f'{total_members} members in all servers.')
 
 
 @bot.event
@@ -588,7 +595,6 @@ async def on_message(message):
     #     print("said hello", message.author.display_name,
     #           message.author.display_avatar)
 
-
     # Extract all URLs from the message
     urls = re.findall(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', message.content)
@@ -622,7 +628,7 @@ async def on_message(message):
         if master_settings[message.guild.id]["webhook"]["preference"] == "webhooks":
 
             channel_webhooks = None
-            if "thread" in message.channel.type or hasattr(message.channel,"parent"):
+            if (message.channel.type == discord.ChannelType.news_thread or message.channel.type == discord.ChannelType.public_thread or message.channel.type == discord.ChannelType.private_thread):
                 channel_webhooks = await message.channel.parent.webhooks()
             else:
                 channel_webhooks = await message.channel.webhooks()
@@ -630,14 +636,14 @@ async def on_message(message):
                 (webhook for webhook in channel_webhooks if bot.user.id == webhook.user.id), None)
 
             if not matching_webhook:
-                if "thread" in message.channel.type or hasattr(message.channel,"parent"):
+                if (message.channel.type == discord.ChannelType.news_thread or message.channel.type == discord.ChannelType.public_thread or message.channel.type == discord.ChannelType.private_thread):
                     matching_webhook = await message.channel.parent.create_webhook(name="VxT", reason="To send messages with converted links.")
                 else:
                     matching_webhook = await message.channel.create_webhook(name="VxT", reason="To send messages with converted links.")
 
-
-            if len(converted_domains_message) >=2000:
-                split_converted_message=split_message(converted_domains_message,2000)
+            if len(converted_domains_message) >= 2000:
+                split_converted_message = split_message(
+                    converted_domains_message, 2000)
                 for split_chunk in split_converted_message:
                     # Parameters to always include
                     webhook_params = {
@@ -650,8 +656,8 @@ async def on_message(message):
                     }
 
                     # Conditionally add the 'thread' parameter if the channel type is a thread
-                    if "thread" in message.channel.type:
-                        webhook_params['thread'] = message.channel.id
+                    if (message.channel.type == discord.ChannelType.news_thread or message.channel.type == discord.ChannelType.public_thread or message.channel.type == discord.ChannelType.private_thread):
+                        webhook_params['thread'] = message.channel
                     sent_message = await matching_webhook.send(**webhook_params)
                     if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
                         await sent_message.add_reaction("❌")
@@ -667,13 +673,14 @@ async def on_message(message):
                 }
 
                 # Conditionally add the 'thread' parameter if the channel type is a thread
-                if "thread" in message.channel.type:
-                    webhook_params['thread'] = message.channel.id
+                if (message.channel.type == discord.ChannelType.news_thread or message.channel.type == discord.ChannelType.public_thread or message.channel.type == discord.ChannelType.private_thread):
+                    webhook_params['thread'] = message.channel
                 sent_message = await matching_webhook.send(**webhook_params)
 
         elif master_settings[message.guild.id]["webhook"]["preference"] == "bot" and master_settings[message.guild.id]["webhook"]["reply"]:
-            if len(converted_domains_message) >=2000:
-                split_converted_message=split_message(converted_domains_message,2000)
+            if len(converted_domains_message) >= 2000:
+                split_converted_message = split_message(
+                    converted_domains_message, 2000)
                 for split_chunk in split_converted_message:
                     sent_message = await message.reply(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
                     if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
@@ -681,8 +688,9 @@ async def on_message(message):
             else:
                 sent_message = await message.reply(content=converted_domains_message, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_mentions)
         else:
-            if len(converted_domains_message) >=2000:
-                split_converted_message=split_message(converted_domains_message,2000)
+            if len(converted_domains_message) >= 2000:
+                split_converted_message = split_message(
+                    converted_domains_message, 2000)
                 for split_chunk in split_converted_message:
                     sent_message = await message.channel.send(content=split_chunk, files=[await attachment.to_file() for attachment in message.attachments], allowed_mentions=msg_send_mentions)
                     if master_settings[message.guild.id]["delete-bot-message"]["toggle"]:
