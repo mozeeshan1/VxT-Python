@@ -495,7 +495,8 @@ config = json.load(config)
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(".", intents=intents)
+bot = commands.AutoShardedBot(".", intents=intents)
+
 
 
 @bot.event
@@ -521,7 +522,21 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
     print(f"{len(await bot.tree.fetch_commands())} application commands loaded")
     print(f'{total_members} members in all servers.')
+    print(f'Shards: {bot.shards}')
 
+
+@bot.event
+async def on_shard_connect(shard_id):
+    print(f'Shard #{shard_id} has connected.')
+
+@bot.event
+async def on_shard_ready(shard_id):
+    print(f'Shard #{shard_id} is ready.')
+
+
+@bot.event
+async def on_shard_disconnect(shard_id):
+    print(f'Shard #{shard_id} has disconnected.')
 
 @bot.event
 async def on_guild_join(guild):
