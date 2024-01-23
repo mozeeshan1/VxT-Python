@@ -15,7 +15,7 @@ from collections import defaultdict
 
 
 default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com", "x.com": "fxtwitter.com",
-                                        "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": {"all": True, "text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
+                                        "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": { "all":True,"text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
 
 master_settings = {}
 
@@ -254,9 +254,10 @@ async def reload_all_extensions(bot=None, client=None):
 
 def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_urls, link_responses):
     if master_settings[guild_id]["toggle"] != default_settings["toggle-list"] or master_settings[guild_id]["retweet"] != default_settings["retweet-list"] or master_settings[guild_id]["quote-tweet"] != default_settings["quote-tweet-list"] or master_settings[guild_id]["direct-media"] != default_settings["direct-media-list"]:
+        
         # Regular expression to extract the status number from the Twitter link
         pattern = r"/status/(\d+)"
-        temp_new_domain_urls = domain_urls
+        temp_new_domain_urls = domain_urls.copy()
         direct_media_urls = set()
         mosaic_direct_media_urls = set()
         for link in domain_urls:
@@ -279,7 +280,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                     continue
 
             if master_settings[guild_id]["toggle"] != default_settings["toggle-list"]:
-                if not master_settings[guild_id]["toggle"]["all"] or (not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"]))):
+                if  (not master_settings[guild_id]["toggle"]["text"] and (len(link_responses[link]["text"])>0))or(not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"]))):
                     temp_new_domain_urls.discard(link)
                 else:
                     temp_new_domain_urls.add(link)
