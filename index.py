@@ -666,7 +666,7 @@ async def on_message(message):
                         'content': split_chunk,
                         'wait': True,
                         'username': message.author.display_name if master_settings[message.guild.id]["name-preference"] == "display name" else message.author.name,
-                        'avatar_url': message.author.display_avatar,
+                        'avatar_url': message.author.display_avatar.url,
                         'files': [await attachment.to_file() for attachment in message.attachments],
                         'allowed_mentions': msg_mentions
                     }
@@ -683,7 +683,7 @@ async def on_message(message):
                     'content': converted_domains_message,
                     'wait': True,
                     'username': message.author.display_name if master_settings[message.guild.id]["name-preference"] == "display name" else message.author.name,
-                    'avatar_url': message.author.display_avatar,
+                    'avatar_url': message.author.display_avatar.url,
                     'files': [await attachment.to_file() for attachment in message.attachments],
                     'allowed_mentions': msg_mentions
                 }
