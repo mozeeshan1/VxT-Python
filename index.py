@@ -276,7 +276,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                     link_responses[link] = response.json()["tweet"]
                 else:
                     print(
-                        f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code}")
+                        f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code} \n Response here: \n{response}")
                     continue
 
             if master_settings[guild_id]["toggle"] != default_settings["toggle-list"]:
