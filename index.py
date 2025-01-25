@@ -274,8 +274,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                 # Construct the API URL
                 api_url = f"https://api.fxtwitter.com/i/status/{status_number}"
 
-                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"
-}
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"}
 
                 # Send a request to the API URL (you can customize this part as needed)
                 response = requests.get(api_url, headers=headers)
@@ -333,8 +332,10 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
             # Construct the API URL
             api_url = f"https://api.fxtwitter.com/i/status/{status_number}"
 
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"}
+
             # Send a request to the API URL
-            response = requests.get(api_url)
+            response = requests.get(api_url, headers=headers)
 
             # Check the response and store it if successful
             if response.status_code == 200:
