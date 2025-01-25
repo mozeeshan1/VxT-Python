@@ -264,19 +264,15 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
         # Regular expression to extract the status number from the Twitter link
         pattern = r"/status/(\d+)"
         temp_new_domain_urls = domain_urls.copy()
-        print(f"TEMP NEW URLS CREATED HERE:\n {temp_new_domain_urls}")
         direct_media_urls = set()
         mosaic_direct_media_urls = set()
-        print(domain_urls)
         for link in domain_urls:
-            print(link)
             match = re.search(pattern, link)
             if match:
                 status_number = match.group(1)
 
                 # Construct the API URL
                 api_url = f"https://api.fxtwitter.com/i/status/{status_number}"
-                print(api_url)
 
                 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"
 }
@@ -289,35 +285,22 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                     link_responses[link] = response.json()["tweet"]
                 else:
                     print(
-                        f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code} \n Response here: \n{response.reason}\n{response.raw}")
+                        f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code} \n Response reason here: \n{response.reason}")
                     continue
-                print(f"LINK RESPONSES HERE AFTER IF AND ELSE LOOPS:\n{link_responses}")
 
 
             if master_settings[guild_id]["toggle"] != default_settings["toggle-list"]:
-                print(f"temp urls before toggle list:\n{temp_new_domain_urls}")
-                print((not master_settings[guild_id]["toggle"]["text"] and (len(link_responses[link]["text"])>0)))
-                print((not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))))
-                print((not master_settings[guild_id]["toggle"]["videos"]))
-                print((("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"])))
-                print(("media" in link_responses[link] and "videos" in link_responses[link]["media"]))
-                print((not master_settings[guild_id]["toggle"]["images"]))
-                print((("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"])))
-                print(("media" in link_responses[link] and "photos" in link_responses[link]["media"]))
                 if  (not master_settings[guild_id]["toggle"]["text"] and (len(link_responses[link]["text"])>0))or(not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"]))):
                     temp_new_domain_urls.discard(link)
                 else:
                     temp_new_domain_urls.add(link)
-                print(f"temp urls after toggle list:\n{temp_new_domain_urls}")
 
 
             if not master_settings[guild_id]["quote-tweet"]["link_conversion"]["follow tweets"]:
-                print(f"temp urls before quote tweet toggle:\n{temp_new_domain_urls}")
                 if (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["all"] or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or "polls" in link_responses[link])) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"])))):
                     temp_new_domain_urls.discard(link)
                 else:
                     temp_new_domain_urls.add(link)
-                print(f"temp urls after quote tweet toggle:\n{temp_new_domain_urls}")
                 
 
 
@@ -358,7 +341,7 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                 link_responses[full_url] = response.json()["tweet"]
             else:
                 print(
-                    f"Failed to retrieve data for fxtwitter status {status_number}. HTTP Status Code: {response.status_code}")
+                    f"Failed to retrieve data for fxtwitter status {status_number}. HTTP Status Code: {response.status_code} \n Response reason here: \n{response.reason}")
                 continue
 
         urls_to_delete = set()
@@ -435,10 +418,8 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                 new_url = f"https://d.fxtwitter.com/i/status/{link_responses[url]['id']}/"
             processed_message = processed_message.replace(url, new_url)
 
-        print(f"TEMP NEW URLS HERE:\n {temp_new_domain_urls}\n LINK RESPONSES HERE:\n{link_responses.keys()}")
         for url in temp_new_domain_urls:
             new_url = ""
-            print(f"URL IN NEW URL HERE: \n {url}")
             # If no successful data was fetched for this URL, skip.
             if url not in link_responses:
                 continue
@@ -446,7 +427,6 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
                 new_url = f"https://fxtwitter.com/i/status/{link_responses[url]['id']}/{master_settings[guild_id]['translate']['language']}"
             else:
                 new_url = f"https://fxtwitter.com/i/status/{link_responses[url]['id']}/"
-            print(f"NEW URL HERE:\n {new_url}\n PROCESSED MESSAGE:\n{processed_message}")
             processed_message = processed_message.replace(url, new_url)
 
         return processed_message
@@ -762,7 +742,7 @@ async def main():
     bot.tree.on_error = command_error_handler
     bot.on_error = on_bot_error
     bot.on_command_error = on_bot_command_error
-    await bot.start(config["TEST TOKEN"], reconnect=True)
+    await bot.start(config["TOKEN"], reconnect=True)
 
 
 # Use asyncio.run() only if this script is executed directly
