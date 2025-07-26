@@ -6,9 +6,8 @@ from discord import app_commands
 from discord.ext import commands
 import datetime
 import traceback
-import requests
 import sys
-
+import aiohttp
 
 import re
 from collections import defaultdict
@@ -18,6 +17,30 @@ default_settings = {"conversion-list": {"twitter.com": "fxtwitter.com", "x.com":
                                         "instagram.com": "ddinstagram.com", "tiktok.com": "tiktxk.com"}, "name-preference-list": "display name", "mention-remove-list": [], "toggle-list": { "all":True,"text": True, "images": True, "videos": True, "polls": True}, "quote-tweet-list": {"link_conversion": {"follow tweets": True, "all": True, "text": True, "images": True, "videos": True, "polls": True}, "remove quoted tweet": False}, "message-list": {"delete_original": True, "other_webhooks": False}, "retweet-list": {"delete_original_tweet": False}, "direct-media-list": {"toggle": {"images": False, "videos": False}, "channel": ["allow"], "multiple_images": {"convert": True, "replace_with_mosaic": True}, "quote_tweet": {"convert": False, "prefer_quoted_tweet": True}}, "translate-list": {"toggle": False, "language": "en"}, "delete-bot-message-list": {"toggle": False, "number": 1}, "webhook-list": {"preference": "webhooks", "reply": False}, "blacklist-list": {"users": [], "roles": []}}
 
 master_settings = {}
+
+_punct_tail = '>)].,\'" \t\r\n'
+
+def clean_url(raw: str) -> str:
+    """Strip trailing markdown punctuation so dict look-ups stay consistent."""
+    return raw.rstrip(_punct_tail)
+
+async def fetch_fxtwitter(status_id: str,
+                          session: aiohttp.ClientSession) -> dict | None:
+    """Non-blocking call to fxtwitter → returns tweet dict or None."""
+    api_url = f"https://api.fxtwitter.com/i/status/{status_id}"
+    headers = {"User-Agent": "VxT (https://github.com/yourrepo)"}
+    async with session.get(api_url, headers=headers) as resp:
+        if resp.status == 200:
+            data = await resp.json()
+            return data["tweet"]
+    return None
+
+async def safe_fetch_webhook(bot, webhook_id):
+    """Return webhook object or None when we lack Manage Webhooks perms."""
+    try:
+        return await bot.fetch_webhook(webhook_id)
+    except discord.Forbidden:# 50013 – Missing Permissions
+        return None
 
 
 class custom_app_command_error(discord.app_commands.AppCommandError):
@@ -258,7 +281,7 @@ def remove_extras_after_status(processed_message):
     # Replace the whole match with just the part before anything extra (?s=20, etc).
     return re.sub(pattern, r'\1', processed_message)
 
-def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_urls, link_responses):
+async def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_urls, link_responses,session):
     if master_settings[guild_id]["toggle"] != default_settings["toggle-list"] or master_settings[guild_id]["retweet"] != default_settings["retweet-list"] or master_settings[guild_id]["quote-tweet"] != default_settings["quote-tweet-list"] or master_settings[guild_id]["direct-media"] != default_settings["direct-media-list"]:
         
         # Regular expression to extract the status number from the Twitter link
@@ -267,36 +290,30 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
         direct_media_urls = set()
         mosaic_direct_media_urls = set()
         for link in domain_urls:
+            link = clean_url(link)
             match = re.search(pattern, link)
             if match:
                 status_number = match.group(1)
 
-                # Construct the API URL
-                api_url = f"https://api.fxtwitter.com/i/status/{status_number}"
-
-                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"}
-
-                # Send a request to the API URL (you can customize this part as needed)
-                response = requests.get(api_url, headers=headers)
-
-                # Check the response (for demonstration purposes, we'll just print it)
-                if response.status_code == 200:
-                    link_responses[link] = response.json()["tweet"]
+                tweet_json = await fetch_fxtwitter(status_number, session)
+                if tweet_json:
+                    link_responses[link] = tweet_json
                 else:
                     print(
                         f"Failed to retrieve data for status {status_number}. HTTP Status Code: {response.status_code} \n Response reason here: \n{response.reason}")
                     continue
+                tweet_data = link_responses.get(link)
 
 
             if master_settings[guild_id]["toggle"] != default_settings["toggle-list"]:
-                if  (not master_settings[guild_id]["toggle"]["text"] and (len(link_responses[link]["text"])>0))or(not master_settings[guild_id]["toggle"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or ("polls" in link_responses[link]))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"]))):
+                if  (not master_settings[guild_id]["toggle"]["text"] and (len(tweet_data["text"])>0))or(not master_settings[guild_id]["toggle"]["polls"] and (("quote" in tweet_data and "polls" in tweet_data["quote"]) or ("polls" in tweet_data))) or (not master_settings[guild_id]["toggle"]["videos"] and (("quote" in tweet_data and "media" in tweet_data["quote"] and "videos" in tweet_data["quote"]["media"]) or ("media" in tweet_data and "videos" in tweet_data["media"]))) or (not master_settings[guild_id]["toggle"]["images"] and (("quote" in tweet_data and "media" in tweet_data["quote"] and "photos" in tweet_data["quote"]["media"]) or ("media" in tweet_data and "photos" in tweet_data["media"]))):
                     temp_new_domain_urls.discard(link)
                 else:
                     temp_new_domain_urls.add(link)
 
 
             if not master_settings[guild_id]["quote-tweet"]["link_conversion"]["follow tweets"]:
-                if (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["all"] or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["polls"] and (("quote" in link_responses[link] and "polls" in link_responses[link]["quote"]) or "polls" in link_responses[link])) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["videos"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "videos" in link_responses[link]["media"]))) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["images"] and (("quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "photos" in link_responses[link]["quote"]["media"]) or ("media" in link_responses[link] and "photos" in link_responses[link]["media"])))):
+                if (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["all"] or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["polls"] and (("quote" in tweet_data and "polls" in tweet_data["quote"]) or "polls" in tweet_data)) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["videos"] and (("quote" in tweet_data and "media" in tweet_data["quote"] and "videos" in tweet_data["quote"]["media"]) or ("media" in tweet_data and "videos" in tweet_data["media"]))) or (not master_settings[guild_id]["quote-tweet"]["link_conversion"]["images"] and (("quote" in tweet_data and "media" in tweet_data["quote"] and "photos" in tweet_data["quote"]["media"]) or ("media" in tweet_data and "photos" in tweet_data["media"])))):
                     temp_new_domain_urls.discard(link)
                 else:
                     temp_new_domain_urls.add(link)
@@ -304,20 +321,20 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
 
 
             if master_settings[guild_id]["direct-media"]["toggle"] != default_settings["direct-media-list"]["toggle"] and ("allow" in master_settings[guild_id]["direct-media"]["channel"] or ("allow", message.channel.mention) in master_settings[guild_id]["direct-media"]["channel"]):
-                if (master_settings[guild_id]["direct-media"]["toggle"]["images"] and "media" in link_responses[link] and "photos" in link_responses[link]["media"]) or (master_settings[guild_id]["direct-media"]["toggle"]["videos"] and "media" in link_responses[link] and "videos" in link_responses[link]["media"]):
+                if (master_settings[guild_id]["direct-media"]["toggle"]["images"] and "media" in tweet_data and "photos" in tweet_data["media"]) or (master_settings[guild_id]["direct-media"]["toggle"]["videos"] and "media" in tweet_data and "videos" in tweet_data["media"]):
                     direct_media_urls.add(link)
 
-                if not master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and (("media" in link_responses[link] and "mosaic" in link_responses[link]["media"]) or "quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "mosaic" in link_responses[link]["quote"]["media"]):
+                if not master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and (("media" in tweet_data and "mosaic" in tweet_data["media"]) or "quote" in tweet_data and "media" in tweet_data["quote"] and "mosaic" in tweet_data["quote"]["media"]):
                     direct_media_urls.discard(link)
 
-                if master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and master_settings[guild_id]["direct-media"]["multiple_images"]["replace_with_mosaic"] and (("media" in link_responses[link] and "mosaic" in link_responses[link]["media"]) or "quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "mosaic" in link_responses[link]["quote"]["media"]):
+                if master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and master_settings[guild_id]["direct-media"]["multiple_images"]["replace_with_mosaic"] and (("media" in tweet_data and "mosaic" in tweet_data["media"]) or "quote" in tweet_data and "media" in tweet_data["quote"] and "mosaic" in tweet_data["quote"]["media"]):
                     direct_media_urls.discard(link)
                     mosaic_direct_media_urls.add(link)
 
-                if master_settings[guild_id]["direct-media"]["quote_tweet"]["convert"] and ((master_settings[guild_id]["direct-media"]["toggle"]["images"] and "quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "images" in link_responses[link]["quote"]["media"]) or (master_settings[guild_id]["direct-media"]["toggle"]["videos"] and "quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "videos" in link_responses[link]["quote"]["media"])):
+                if master_settings[guild_id]["direct-media"]["quote_tweet"]["convert"] and ((master_settings[guild_id]["direct-media"]["toggle"]["images"] and "quote" in tweet_data and "media" in tweet_data["quote"] and "images" in tweet_data["quote"]["media"]) or (master_settings[guild_id]["direct-media"]["toggle"]["videos"] and "quote" in tweet_data and "media" in tweet_data["quote"] and "videos" in tweet_data["quote"]["media"])):
                     direct_media_urls.add(link)
 
-                if master_settings[guild_id]["direct-media"]["quote_tweet"]["convert"] and master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and (master_settings[guild_id]["direct-media"]["toggle"]["images"] and "quote" in link_responses[link] and "media" in link_responses[link]["quote"] and "mosaic" in link_responses[link]["quote"]["media"]) and master_settings[guild_id]["direct-media"]["multiple_images"]["replace_with_mosaic"]:
+                if master_settings[guild_id]["direct-media"]["quote_tweet"]["convert"] and master_settings[guild_id]["direct-media"]["multiple_images"]["convert"] and (master_settings[guild_id]["direct-media"]["toggle"]["images"] and "quote" in tweet_data and "media" in tweet_data["quote"] and "mosaic" in tweet_data["quote"]["media"]) and master_settings[guild_id]["direct-media"]["multiple_images"]["replace_with_mosaic"]:
                     mosaic_direct_media_urls.add(link)
 
         # Regular expression to match any fxtwitter.com URLs and extract the entire URL including query parameters
@@ -329,21 +346,16 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
         # Iterate over the matches to make API requests
         for full_url, status_number in fxtwitter_matches:
 
-            # Construct the API URL
-            api_url = f"https://api.fxtwitter.com/i/status/{status_number}"
-
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ""AppleWebKit/537.36 (KHTML, like Gecko) ""Chrome/108.0.0.0 Safari/537.36"}
-
-            # Send a request to the API URL
-            response = requests.get(api_url, headers=headers)
-
-            # Check the response and store it if successful
-            if response.status_code == 200:
-                link_responses[full_url] = response.json()["tweet"]
+            tweet_json = await fetch_fxtwitter(status_number, session)
+            if tweet_json:
+               link_responses[full_url] = tweet_json
             else:
                 print(
                     f"Failed to retrieve data for fxtwitter status {status_number}. HTTP Status Code: {response.status_code} \n Response reason here: \n{response.reason}")
                 continue
+            tweet_data = link_responses.get(full_url)
+            if tweet_data is None:
+                continue   
 
         urls_to_delete = set()
         if master_settings[guild_id]["retweet"]["delete_original_tweet"]:
@@ -444,43 +456,43 @@ def convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_url
     return processed_message
 
 
-def convert_domains_in_message(message, guild_id, urls):
+async def convert_domains_in_message(message, guild_id, urls):
     processed_message = remove_extras_after_status(message.content)
-    # Group URLs by their domain
-    domain_groups = defaultdict(list)
-    for url in urls:
-        # Extract the domain including subdomains
-        full_domain = re.search(r'https?://([\w.-]+)/?', url).group(1)
-        # Extract the main domain (without subdomains)
-        domain_parts = full_domain.split('.')
-        # e.g., "instagram.com" from "www.instagram.com"
-        main_domain = '.'.join(domain_parts[-2:])
+    async with aiohttp.ClientSession() as session:
+        # Group URLs by their domain
+        domain_groups = defaultdict(list)
+        for url in urls:
+            # Extract the domain including subdomains
+            full_domain = re.search(r'https?://([\w.-]+)/?', url).group(1)
+            # Extract the main domain (without subdomains)
+            domain_parts = full_domain.split('.')
+            # e.g., "instagram.com" from "www.instagram.com"
+            main_domain = '.'.join(domain_parts[-2:])
 
-        if url not in domain_groups[main_domain]:
-            domain_groups[main_domain].append(url)
+            if url not in domain_groups[main_domain]:
+                domain_groups[main_domain].append(url)
 
-    # Process each domain group
-    for domain, domain_urls in domain_groups.items():
-        domain_urls = set(domain_urls)
-        if domain in master_settings[guild_id]["conversion"]:
-            # Here, we can add preprocessing checks based on the domain and guild settings
-            # For example, for twitter, check if any URL in domain_urls is a retweet with photos, etc.
+        # Process each domain group
+        for domain, domain_urls in domain_groups.items():
+            domain_urls = set(domain_urls)
+            if domain in master_settings[guild_id]["conversion"]:
+                # Here, we can add preprocessing checks based on the domain and guild settings
+                # For example, for twitter, check if any URL in domain_urls is a retweet with photos, etc.
 
-            link_responses = {}
+                link_responses = {}
 
-            if (domain == "twitter.com" or domain == "x.com") and master_settings[guild_id]["conversion"][domain] == "fxtwitter.com":
-                processed_message = convert_to_fxtwitter_domain(
-                    processed_message, message, guild_id, domain_urls, link_responses)
-                continue
+                if (domain == "twitter.com" or domain == "x.com") and master_settings[guild_id]["conversion"][domain] == "fxtwitter.com":
+                    processed_message = await convert_to_fxtwitter_domain(processed_message, message, guild_id, domain_urls,link_responses, session)  
+                    continue
 
-            # Replace all URLs of that domain with the desired domain
-            for url in domain_urls:
-                converted_url = url.replace(
-                    domain, master_settings[guild_id]["conversion"][domain])
-                processed_message = processed_message.replace(
-                    url, converted_url)
+                # Replace all URLs of that domain with the desired domain
+                for url in domain_urls:
+                    converted_url = url.replace(
+                        domain, master_settings[guild_id]["conversion"][domain])
+                    processed_message = processed_message.replace(
+                        url, converted_url)
 
-    return processed_message
+        return processed_message
 
 
 def split_message(message, chunk_size=2000):
@@ -510,10 +522,14 @@ config = open("config.json")
 config = json.load(config)
 
 
+class VXTClient(commands.AutoShardedBot):
+    async def before_identify_hook(self, shard_id, *, initial):
+        await asyncio.sleep(6)
+
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.AutoShardedBot(".", intents=intents)
+bot = VXTClient(".", intents=intents)
 
 
 
@@ -586,7 +602,9 @@ async def on_raw_reaction_add(payload):
     channel = await bot.fetch_channel(payload.channel_id)
     message = await channel.fetch_message(payload.message_id)
     if message.webhook_id:
-        temp_webhook = await bot.fetch_webhook(message.webhook_id)
+        temp_webhook = await safe_fetch_webhook(bot, message.webhook_id)
+        if temp_webhook is None:
+            return     
         temp_bot = await message.guild.fetch_member(temp_webhook.user.id)
         if temp_bot.id == bot.user.id:
             reaction = next(
@@ -615,7 +633,9 @@ async def on_message(message):
         return
 
     if message.webhook_id:
-        temp_webhook = await bot.fetch_webhook(message.webhook_id)
+        temp_webhook = await safe_fetch_webhook(bot, message.webhook_id)
+        if temp_webhook is None:
+            return     
         temp_bot = await message.guild.fetch_member(temp_webhook.user.id)
         if temp_bot.id in master_settings[message.guild.id]["blacklist"]["users"] or any(role.id in master_settings[message.guild.id]["blacklist"]["roles"] for role in temp_bot.roles):
             return
@@ -634,7 +654,7 @@ async def on_message(message):
 
     # Check if the conversion list has any domains and if the message has any URLs
     if len(master_settings[message.guild.id]["conversion"].keys()) > 0 and urls:
-        converted_domains_message = convert_domains_in_message(
+        converted_domains_message = await convert_domains_in_message(
             message, message.guild.id, urls)
         if converted_domains_message == message.content:
             return
@@ -743,7 +763,7 @@ async def main():
     bot.tree.on_error = command_error_handler
     bot.on_error = on_bot_error
     bot.on_command_error = on_bot_command_error
-    await bot.start(config["TOKEN"], reconnect=True)
+    await bot.start(config["TEST TOKEN"], reconnect=True)
 
 
 # Use asyncio.run() only if this script is executed directly

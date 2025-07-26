@@ -3,3 +3,4 @@ langcodes
 pycountry
 aiomysql
 requests
+aiohttp
