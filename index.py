@@ -8,6 +8,7 @@ import datetime
 import traceback
 import sys
 import aiohttp
+from discord.ext.commands import BotMissingPermissions
 
 import re
 from collections import defaultdict
@@ -124,8 +125,22 @@ async def on_bot_error(error_event, *args, **kwargs):
         if raw_event:
             channel = await bot.fetch_channel(raw_event.channel_id)
 
+
+    if isinstance(exc_value, commands.BotMissingPermissions):
+        # find the channel that triggered the event
+        message = next((a for a in args if isinstance(a, discord.Message)), None)
+        channel = message.channel if message else None
+
+        # say something only if we have Send Messages here
+        if channel and channel.permissions_for(channel.guild.me).send_messages:
+            missing = ", ".join(exc_value.missing_permissions)
+            await channel.send(
+                f"I need the **{missing}** permission in this channel to convert links."
+            )
+
+
     if exc_type == discord.errors.Forbidden and exc_value.code == 50013:
-        if channel:
+        if channel and channel.permissions_for(channel.guild.me).send_messages:
             # Inspect the traceback to check if the error is related to webhooks or message deletion
             tb_str = "".join(traceback.format_tb(exc_traceback))
             if 'webhooks' in tb_str:
@@ -681,6 +696,9 @@ async def on_message(message):
         if master_settings[message.guild.id]["webhook"]["preference"] == "webhooks":
 
             channel_webhooks = None
+            perms = message.channel.permissions_for(message.guild.me)
+            if not perms.manage_webhooks:
+                raise BotMissingPermissions(["manage_webhooks"])  
             if (message.channel.type == discord.ChannelType.news_thread or message.channel.type == discord.ChannelType.public_thread or message.channel.type == discord.ChannelType.private_thread):
                 channel_webhooks = await message.channel.parent.webhooks()
             else:
@@ -763,7 +781,7 @@ async def main():
     bot.tree.on_error = command_error_handler
     bot.on_error = on_bot_error
     bot.on_command_error = on_bot_command_error
-    await bot.start(config["TOKEN"], reconnect=True)
+    await bot.start(config["TEST TOKEN"], reconnect=True)
 
 
 # Use asyncio.run() only if this script is executed directly
