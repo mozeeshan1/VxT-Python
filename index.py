@@ -28,8 +28,8 @@ def clean_url(raw: str) -> str:
 async def fetch_fxtwitter(status_id: str,
                           session: aiohttp.ClientSession) -> dict | None:
     """Non-blocking call to fxtwitter → returns tweet dict or None."""
-    api_url = f"https://api.fxtwitter.com/i/status/{status_id}"
-    headers = {"User-Agent": "VxT (https://github.com/yourrepo)"}
+    api_url = f"https://api.fxtwitter.com/status/{status_id}"
+    headers = {"User-Agent": "VxT"}
     async with session.get(api_url, headers=headers) as resp:
         if resp.status == 200:
             data = await resp.json()
